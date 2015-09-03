@@ -29,7 +29,7 @@ uint8_t key_array_map[] = {
  * profile for pycharm
  */
 uint8_t key_map[][3] = {
-  { KEYCODE_MOD_LEFT_SHIFT, 1, KEYCODE_A },
+  { KEYCODE_MOD_LEFT_SHIFT, 1, KEYCODE_F10 },
   { KEYCODE_MOD_LEFT_SHIFT, 1, KEYCODE_F9 },
   { 0, 0, 0 },
   { 0, 0, 0 },
@@ -66,13 +66,23 @@ void hid_sleep(uint8_t iTime) {
 
 void trellis_set_lights() {
   bool bAllLightsOn = (digitalRead(PIN_SWITCH) == HIGH);
+  bool bKeyPressed;
   uint8_t iLedCursor = 0;
 
   for (iLedCursor=0; iLedCursor<TRE_NUM_KEYS; iLedCursor++) {
+    bKeyPressed = trellis.isKeyPressed(iLedCursor);
     if (bAllLightsOn) {
-      trellis.setLED(iLedCursor);
+      if (bKeyPressed) {
+        trellis.clrLED(iLedCursor);
+      } else {
+        trellis.setLED(iLedCursor);
+      }
     } else {
-      trellis.clrLED(iLedCursor);
+      if (bKeyPressed) {
+        trellis.setLED(iLedCursor);
+      } else {
+        trellis.clrLED(iLedCursor);
+      }
     }
   }
 
@@ -110,8 +120,7 @@ void setup() {
   digitalWrite(PIN_TRE_INT, HIGH);
 
   trellis.begin(0x70);
-  //trellis_set_lights();
-  trellis_set_lights_off();
+  trellis_set_lights();
 
   TrinketKeyboard.begin();
   iLastKey = KEY_NOT_SET;
@@ -119,10 +128,11 @@ void setup() {
 
 // the loop function runs over and over again forever
 void loop() {
+  bool bAllLightsOn = (digitalRead(PIN_SWITCH) == HIGH);
   uint8_t iKey;
   uint8_t *pMacro;
   hid_sleep(30);
-  //trellis_set_lights();
+  trellis_set_lights();
 
   if (!trellis.readSwitches()) {
     return;
@@ -139,36 +149,28 @@ void loop() {
 
   for (iKey=0; iKey<16; iKey++) {
     if (trellis.justReleased(iKey)) {
-      trellis.clrLED(iKey);
+      if (bAllLightsOn) {
+        trellis.clrLED(iKey);
+      } else {
+        trellis.setLED(iKey);
+      }
     }
     if (trellis.justPressed(iKey)) {
-      trellis.setLED(iKey);
+      if (bAllLightsOn) {
+        trellis.setLED(iKey);
+      } else {
+        trellis.clrLED(iKey);
+      }
+
       if (iLastKey == KEY_NOT_SET) {
         iLastKey = iKey;
         iKey = key_array_map[iKey];
 
-        //pMacro = key_map[iKey];
-        //if (pMacro[1] == 0) {
-        //  continue;
-        //}
-        //TrinketKeyboard.pressKeys(KEYCODE_MOD_LEFT_SHIFT, &pMacro[2], 1);
-        //TrinketKeyboard.pressKey(0, 0);
-
-        switch (iKey) {
-          case 0:
-            TrinketKeyboard.pressKey(0, KEYCODE_0);
-            break;
-          case 1:
-            TrinketKeyboard.pressKey(0, KEYCODE_1);
-            break;
-          case 2:
-            TrinketKeyboard.pressKey(0, KEYCODE_2);
-            break;
-          case 3:
-            TrinketKeyboard.pressKey(0, KEYCODE_3);
-            break;
+        pMacro = key_map[iKey];
+        if (pMacro[1] != 0) {
+          TrinketKeyboard.pressKeys(KEYCODE_MOD_LEFT_SHIFT, &pMacro[2], 1);
+          TrinketKeyboard.pressKey(0, 0);
         }
-        TrinketKeyboard.pressKey(0, 0);
       }
     }
   }
