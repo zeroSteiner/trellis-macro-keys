@@ -9,15 +9,27 @@
 #define PIN_SWITCH 4
 #define PIN_RST_LED 13
 #define PIN_TRE_INT A2
+#define TRE_BRIGHTNESS 3 /* max is 15 */
 #define TRE_NUM_KEYS 16
-#define KEY_NOT_SET -1
+#define MAX_MACRO_SIZE 32
+#define NOT_SET -1
+#define MACRO_NOT_SET { 0, 0, { } }
 
 Adafruit_Trellis matrix0 = Adafruit_Trellis();
 Adafruit_TrellisSet trellis = Adafruit_TrellisSet(&matrix0);
 
+typedef struct Macro {
+  uint8_t iMod;
+  int8_t  iSz;
+  union {
+    char    cStr[MAX_MACRO_SIZE];
+    uint8_t iKeys[MAX_MACRO_SIZE];
+  };
+};
+
 int8_t iLastKey;
 
-uint8_t key_array_map[] = {
+const uint8_t trellisToMacroKeyMap[] = {
   12, 8,  4,  0,
   13, 9,  5,  1,
   14, 10, 6,  2,
@@ -28,26 +40,26 @@ uint8_t key_array_map[] = {
  * modifiers, number of keys, keys
  * profile for pycharm
  */
-uint8_t key_map[][3] = {
-  { KEYCODE_MOD_LEFT_SHIFT, 1, KEYCODE_F10 },
-  { KEYCODE_MOD_LEFT_SHIFT, 1, KEYCODE_F9 },
-  { 0, 0, 0 },
-  { 0, 0, 0 },
-  { (KEYCODE_MOD_LEFT_SHIFT | KEYCODE_MOD_LEFT_ALT), 1, KEYCODE_7 },
-  { KEYCODE_MOD_LEFT_SHIFT, 1, KEYCODE_F6 },
-  { 0, 0, 0 },
-  { 0, 0, 0 },
-  { 0, 0, 0 },
-  { 0, 0, 0 },
-  { 0, 0, 0 },
-  { 0, 0, 0 },
-  { 0, 0, 0 },
-  { 0, 0, 0 },
-  { 0, 0, 0 },
-  { 0, 0, 0 },
+Macro macroKeyMap[16] = {
+  { KEYCODE_MOD_LEFT_SHIFT, 1, { KEYCODE_F10 } },
+  { KEYCODE_MOD_LEFT_SHIFT, 1, { KEYCODE_F9 } },
+  MACRO_NOT_SET,
+  MACRO_NOT_SET,
+  { (KEYCODE_MOD_LEFT_SHIFT | KEYCODE_MOD_LEFT_ALT), 1, { KEYCODE_7 } },
+  { KEYCODE_MOD_LEFT_SHIFT, 1, { KEYCODE_F6 } },
+  MACRO_NOT_SET,
+  MACRO_NOT_SET,
+  { 0, -1, "Hello World!" },
+  { 0, 1, { KEYCODE_A } },
+  MACRO_NOT_SET,
+  MACRO_NOT_SET,
+  { KEYCODE_MOD_LEFT_ALT, 1, { KEYCODE_1 } },
+  { KEYCODE_MOD_LEFT_ALT, 1, { KEYCODE_2 } },
+  { KEYCODE_MOD_LEFT_ALT, 1, { KEYCODE_7 } },
+  { KEYCODE_MOD_LEFT_ALT, 1, { KEYCODE_F12 } }
 };
 
-void hid_sleep(uint8_t iTime) {
+void hidSleep(uint8_t iTime) {
   uint8_t iParts = (iTime / 10);
   iTime = (iTime % 10);
 
@@ -64,7 +76,7 @@ void hid_sleep(uint8_t iTime) {
   return;
 }
 
-void trellis_set_lights() {
+void trellisSetLights() {
   bool bAllLightsOn = (digitalRead(PIN_SWITCH) == HIGH);
   bool bKeyPressed;
   uint8_t iLedCursor = 0;
@@ -90,7 +102,7 @@ void trellis_set_lights() {
   return;
 }
 
-void trellis_set_lights_off() {
+void trellisSetLightsOff() {
   uint8_t iLedCursor = 0;
 
   for (iLedCursor=0; iLedCursor<TRE_NUM_KEYS; iLedCursor++) {
@@ -101,7 +113,7 @@ void trellis_set_lights_off() {
   return;
 }
 
-void trellis_set_lights_on() {
+void trellisSetLightsOn() {
   uint8_t iLedCursor = 0;
 
   for (iLedCursor=0; iLedCursor<TRE_NUM_KEYS; iLedCursor++) {
@@ -120,34 +132,35 @@ void setup() {
   digitalWrite(PIN_TRE_INT, HIGH);
 
   trellis.begin(0x70);
-  trellis_set_lights();
+  trellis.setBrightness(TRE_BRIGHTNESS);
+  trellisSetLights();
 
   TrinketKeyboard.begin();
-  iLastKey = KEY_NOT_SET;
+  iLastKey = NOT_SET;
 }
 
 // the loop function runs over and over again forever
 void loop() {
   bool bAllLightsOn = (digitalRead(PIN_SWITCH) == HIGH);
   uint8_t iKey;
-  uint8_t *pMacro;
-  hid_sleep(30);
-  trellis_set_lights();
+  Macro *pMacro;
+  hidSleep(30);
+  trellisSetLights();
 
   if (!trellis.readSwitches()) {
     return;
   }
 
-  if (iLastKey != KEY_NOT_SET) {
-    if (trellis.justReleased(iLastKey)) {
-      trellis.clrLED(iKey);
-      iLastKey = KEY_NOT_SET;
-    } else {
+  if (iLastKey != NOT_SET) {
+    if (!trellis.justReleased(iLastKey)) {
       return;
     }
+
+    trellis.clrLED(iKey);
+    iLastKey = NOT_SET;
   }
 
-  for (iKey=0; iKey<16; iKey++) {
+  for (iKey=0; iKey<TRE_NUM_KEYS; iKey++) {
     if (trellis.justReleased(iKey)) {
       if (bAllLightsOn) {
         trellis.clrLED(iKey);
@@ -162,13 +175,15 @@ void loop() {
         trellis.clrLED(iKey);
       }
 
-      if (iLastKey == KEY_NOT_SET) {
+      if (iLastKey == NOT_SET) {
         iLastKey = iKey;
-        iKey = key_array_map[iKey];
+        iKey = trellisToMacroKeyMap[iKey];
 
-        pMacro = key_map[iKey];
-        if (pMacro[1] != 0) {
-          TrinketKeyboard.pressKeys(KEYCODE_MOD_LEFT_SHIFT, &pMacro[2], 1);
+        pMacro = &macroKeyMap[iKey];
+        if (pMacro->iSz == -1)  {
+          TrinketKeyboard.print(pMacro->cStr);
+        } else if (pMacro->iSz != 0) {
+          TrinketKeyboard.pressKeys(pMacro->iMod, pMacro->iKeys, pMacro->iSz);
           TrinketKeyboard.pressKey(0, 0);
         }
       }
