@@ -9,25 +9,36 @@
 #define PIN_SWITCH 4
 #define PIN_RST_LED 13
 #define PIN_TRE_INT A2
-#define TRE_BRIGHTNESS 3 /* max is 15 */
+#define TRE_BRIGHTNESS 3
+#define TRE_MAX_BRIGHTNESS 15
 #define TRE_NUM_KEYS 16
-#define MAX_MACRO_SIZE 32
 #define NOT_SET -1
-#define MACRO_NOT_SET { 0, 0, { } }
+
+#define MAX_MACRO_SIZE 32
+/* define macro types */
+#define MACRO_T_NOT_SET NOT_SET
+#define MACRO_T_KEYS 0
+#define MACRO_T_STR  1
+#define MACRO_T_TRE_BRIGHT 2
+#define MACRO_T_TRE_DIM 3
+/* define common macros */
+#define MACRO_NOT_SET { MACRO_T_NOT_SET, 0, 0, { } }
 
 Adafruit_Trellis matrix0 = Adafruit_Trellis();
 Adafruit_TrellisSet trellis = Adafruit_TrellisSet(&matrix0);
 
 typedef struct Macro {
+  int8_t  iType;
   uint8_t iMod;
-  int8_t  iSz;
+  uint8_t iSize;
   union {
-    char    cStr[MAX_MACRO_SIZE];
     uint8_t iKeys[MAX_MACRO_SIZE];
+    char    cStr[MAX_MACRO_SIZE];
   };
 };
 
 int8_t iLastKey;
+int8_t iTrellisBrightness;
 
 const uint8_t trellisToMacroKeyMap[] = {
   12, 8,  4,  0,
@@ -41,22 +52,22 @@ const uint8_t trellisToMacroKeyMap[] = {
  * profile for pycharm
  */
 Macro macroKeyMap[16] = {
-  { KEYCODE_MOD_LEFT_SHIFT, 1, { KEYCODE_F10 } },
-  { KEYCODE_MOD_LEFT_SHIFT, 1, { KEYCODE_F9 } },
+  { MACRO_T_KEYS, KEYCODE_MOD_LEFT_SHIFT, 1, { KEYCODE_F10 } },
+  { MACRO_T_KEYS, KEYCODE_MOD_LEFT_SHIFT, 1, { KEYCODE_F9 } },
   MACRO_NOT_SET,
   MACRO_NOT_SET,
-  { (KEYCODE_MOD_LEFT_SHIFT | KEYCODE_MOD_LEFT_ALT), 1, { KEYCODE_7 } },
-  { KEYCODE_MOD_LEFT_SHIFT, 1, { KEYCODE_F6 } },
+  { MACRO_T_KEYS, (KEYCODE_MOD_LEFT_SHIFT | KEYCODE_MOD_LEFT_ALT), 1, { KEYCODE_7 } },
+  { MACRO_T_KEYS, KEYCODE_MOD_LEFT_SHIFT, 1, { KEYCODE_F6 } },
   MACRO_NOT_SET,
+  { MACRO_T_TRE_BRIGHT, 0, 0, { } },
+  { MACRO_T_STR,  0, 0, "Hello World!" },
+  { MACRO_T_KEYS, 0, 1, { KEYCODE_A } },
   MACRO_NOT_SET,
-  { 0, -1, "Hello World!" },
-  { 0, 1, { KEYCODE_A } },
-  MACRO_NOT_SET,
-  MACRO_NOT_SET,
-  { KEYCODE_MOD_LEFT_ALT, 1, { KEYCODE_1 } },
-  { KEYCODE_MOD_LEFT_ALT, 1, { KEYCODE_2 } },
-  { KEYCODE_MOD_LEFT_ALT, 1, { KEYCODE_7 } },
-  { KEYCODE_MOD_LEFT_ALT, 1, { KEYCODE_F12 } }
+  { MACRO_T_TRE_DIM, 0, 0, { } },
+  { MACRO_T_KEYS, KEYCODE_MOD_LEFT_ALT, 1, { KEYCODE_1 } },
+  { MACRO_T_KEYS, KEYCODE_MOD_LEFT_ALT, 1, { KEYCODE_2 } },
+  { MACRO_T_KEYS, KEYCODE_MOD_LEFT_ALT, 1, { KEYCODE_7 } },
+  { MACRO_T_KEYS, KEYCODE_MOD_LEFT_ALT, 1, { KEYCODE_F12 } }
 };
 
 void hidSleep(uint8_t iTime) {
@@ -132,7 +143,8 @@ void setup() {
   digitalWrite(PIN_TRE_INT, HIGH);
 
   trellis.begin(0x70);
-  trellis.setBrightness(TRE_BRIGHTNESS);
+  iTrellisBrightness = TRE_BRIGHTNESS;
+  trellis.setBrightness(iTrellisBrightness);
   trellisSetLights();
 
   TrinketKeyboard.begin();
@@ -156,7 +168,7 @@ void loop() {
       return;
     }
 
-    trellis.clrLED(iKey);
+    trellis.clrLED(iLastKey);
     iLastKey = NOT_SET;
   }
 
@@ -180,11 +192,28 @@ void loop() {
         iKey = trellisToMacroKeyMap[iKey];
 
         pMacro = &macroKeyMap[iKey];
-        if (pMacro->iSz == -1)  {
-          TrinketKeyboard.print(pMacro->cStr);
-        } else if (pMacro->iSz != 0) {
-          TrinketKeyboard.pressKeys(pMacro->iMod, pMacro->iKeys, pMacro->iSz);
-          TrinketKeyboard.pressKey(0, 0);
+        switch (pMacro->iType) {
+          case MACRO_T_NOT_SET:
+            break;
+          case MACRO_T_KEYS:
+            TrinketKeyboard.pressKeys(pMacro->iMod, pMacro->iKeys, pMacro->iSize);
+            TrinketKeyboard.pressKey(0, 0);
+            break;
+          case MACRO_T_STR:
+            TrinketKeyboard.print(pMacro->cStr);
+            break;
+          case MACRO_T_TRE_BRIGHT:
+            if (iTrellisBrightness < TRE_MAX_BRIGHTNESS) {
+              iTrellisBrightness += 1;
+              trellis.setBrightness(iTrellisBrightness);
+            }
+            break;
+          case MACRO_T_TRE_DIM:
+            if (iTrellisBrightness > 1) {
+              iTrellisBrightness -= 1;
+              trellis.setBrightness(iTrellisBrightness);
+            }
+            break;
         }
       }
     }
