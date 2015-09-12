@@ -9,8 +9,8 @@
 #define TRE_NUM_KEYS 16
 #define NOT_SET -1
 
-#define MACRO_MAX_SIZE 32
-#define MACRO_NUM 2
+#define MACRO_MAX_SIZE 22
+#define MACRO_NUM 4
 /* define macro types */
 #define MACRO_T_NOT_SET NOT_SET
 #define MACRO_T_KEYS 0

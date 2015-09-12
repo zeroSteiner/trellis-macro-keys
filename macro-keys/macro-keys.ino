@@ -67,6 +67,42 @@ Macro macroKeyMap[MACRO_NUM][TRE_NUM_KEYS] = {
     MACRO_NOT_SET,
     MACRO_NOT_SET,
     MACRO_NOT_SET
+  },
+  {
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    { MACRO_T_STR,  0, 0, "Profile 2" },
+    MACRO_NOT_SET,
+    { MACRO_T_MODE_RST, 0, 0, { } },
+    { MACRO_T_MODE_RST, 0, 0, { } },
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET
+  },
+  {
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    { MACRO_T_STR,  0, 0, "Profile 3" },
+    MACRO_NOT_SET,
+    { MACRO_T_MODE_RST, 0, 0, { } },
+    { MACRO_T_MODE_RST, 0, 0, { } },
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET,
+    MACRO_NOT_SET
   }
 };
 
@@ -262,7 +298,7 @@ void loop() {
     modeNotSet();
   }
 
-  if ((iMode >= 0) && (iMode <= 3)) {
+  if ((iMode >= 0) && (iMode <= MACRO_NUM)) {
     trellisSetLights();
     modeMacro(iMode);
   }
